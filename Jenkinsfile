@@ -15,7 +15,7 @@ pipeline {
                  script{
                         dir("terraform")
                         {
-                            git ""
+                            git "https://github.com/jsolano0112/devmart-infra.git"
                         }
                     }
                 }
