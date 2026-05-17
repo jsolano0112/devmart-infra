@@ -10,16 +10,6 @@ pipeline {
 
    agent  any
     stages {
-        stage('checkout') {
-            steps {
-                 script{
-                        dir("terraform")
-                        {
-                            git "https://github.com/jsolano0112/devmart-infra.git"
-                        }
-                    }
-                }
-            }
 
         stage('Plan') {
             steps {
