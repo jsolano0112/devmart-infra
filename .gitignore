@@ -1,0 +1,43 @@
+# Terraform state files
+*.tfstate
+*.tfstate.*
+
+# Terraform plan files
+*.tfplan
+tfplan
+tfplan.txt
+
+# Terraform variables
+*.tfvars
+*.tfvars.json
+
+# Sensitive variable files
+secret.auto.tfvars
+
+# Terraform cache/providers
+.terraform/
+
+# Crash logs
+crash.log
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration files
+.terraformrc
+terraform.rc
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+
+# Jenkins workspace temp
+*.backup
+*.tmp
