@@ -15,7 +15,7 @@ pipeline {
 
         stage('Plan') {
             steps {
-                dir('terraform') {
+                dir('.') {
                     bat 'terraform init'
                     bat 'terraform plan -out=tfplan'
                     bat 'terraform show -no-color tfplan > tfplan.txt'
@@ -43,7 +43,7 @@ pipeline {
 
         stage('Apply') {
             steps {
-                dir('terraform') {
+                dir('.') {
                     bat 'terraform apply -input=false tfplan'
                 }
             }
