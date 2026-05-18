@@ -1,0 +1,87 @@
+services:
+
+  devmart-api-1:
+    image: jsolano0112/devmart-api:latest
+    container_name: devmart-api-1
+    restart: unless-stopped
+    environment: &api-env
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRE_IN=${JWT_EXPIRE_IN}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_REFRESH_EXPIRE_IN=${JWT_REFRESH_EXPIRE_IN}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+    networks:
+      - devmart-network
+
+  devmart-api-2:
+    image: jsolano0112/devmart-api:latest
+    container_name: devmart-api-2
+    restart: unless-stopped
+    environment: *api-env
+    networks:
+      - devmart-network
+
+  users-api-1:
+    image: jsolano0112/users-api:latest
+    container_name: users-api-1
+    restart: unless-stopped
+    environment: *api-env
+    networks:
+      - devmart-network
+
+  notifications-api-1:
+    image: jsolano0112/notifications-api:latest
+    container_name: notifications-api-1
+    restart: unless-stopped
+    environment: &notifications-env
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRE_IN=${JWT_EXPIRE_IN}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - JWT_REFRESH_EXPIRE_IN=${JWT_REFRESH_EXPIRE_IN}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - SOCKET_SERVER_URL=${SOCKET_SERVER_URL}
+    networks:
+      - devmart-network
+
+  websocket-1:
+    image: jsolano0112/notifications-api:latest
+    container_name: websocket-1
+    restart: unless-stopped
+    environment: *notifications-env
+    command: ["npx", "ts-node", "--transpile-only", "src/server.ts"]
+    networks:
+      - devmart-network
+
+  devmart-ui-1:
+    image: jsolano0112/devmart-ui:latest
+    container_name: devmart-ui-1
+    restart: unless-stopped
+    networks:
+      - devmart-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-gateway
+    restart: unless-stopped
+    ports:
+      - "4000:80"
+    volumes:
+      - type: bind
+        source: ./nginx.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+    depends_on:
+      - devmart-api-1
+      - devmart-api-2
+      - users-api-1
+      - notifications-api-1
+      - websocket-1
+      - devmart-ui-1
+    networks:
+      - devmart-network
+
+networks:
+  devmart-network:
+    driver: bridge
