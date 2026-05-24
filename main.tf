@@ -49,7 +49,8 @@ resource "local_file" "private_key" {
   filename = "${var.key_name}-${local.env}.pem"
 
   provisioner "local-exec" {
-    command = "chmod 400 ${var.key_name}-${local.env}.pem"
+    command     = "icacls \"${var.key_name}-${local.env}.pem\" /inheritance:r /grant:r \"%USERNAME%:R\""
+    interpreter = ["cmd", "/C"]
   }
 }
 
