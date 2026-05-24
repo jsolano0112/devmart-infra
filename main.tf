@@ -56,11 +56,11 @@ resource "aws_key_pair" "devmart_key_pair" {
 }
 
 resource "local_file" "private_key" {
-  content         = tls_private_key.devmart_key.private_key_pem
-  filename        = "${var.key_name}-${local.env}.pem"
-  file_permission = "0400"
+  content              = tls_private_key.devmart_key.private_key_pem
+  filename             = "${path.module}/${var.key_name}.pem"
+  file_permission      = "0600"
+  directory_permission = "0777"
 }
-
 # ─── SECURITY GROUP ────────────────────────────────
 
 resource "aws_security_group" "devmart_sg" {
