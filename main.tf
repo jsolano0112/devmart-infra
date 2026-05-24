@@ -5,7 +5,14 @@ terraform {
       version = "~> 3.0"
     }
   }
+
+  backend "s3" {
+    bucket  = "devmart-terraform-state"
+    key     = "terraform.tfstate"
+    region  = "us-east-1"
+  }
 }
+
 
 provider "aws" {
   region     = var.aws_region
