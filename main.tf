@@ -14,7 +14,7 @@ provider "aws" {
 }
 
 locals {
-  env = terraform.workspace # "qa" o "prod"
+  env = terraform.workspace
 
   config = {
     qa = {
@@ -34,24 +34,20 @@ locals {
 
 # ─── KEY PAIR ──────────────────────────────────────
 
-resource "tls_private_key" "devmart_key" {
+resource "tls_private_key" "devmart_key" {  
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-resource "aws_key_pair" "devmart_key_pair" {
+resource "aws_key_pair" "devmart_key_pair" { 
   key_name   = "${var.key_name}-${local.env}"
   public_key = tls_private_key.devmart_key.public_key_openssh
 }
 
 resource "local_file" "private_key" {
-  content  = tls_private_key.devmart_key.private_key_pem
-  filename = "${var.key_name}-${local.env}.pem"
-
-  provisioner "local-exec" {
-    command     = "icacls \"${var.key_name}-${local.env}.pem\" /inheritance:r /grant:r \"%USERNAME%:R\""
-    interpreter = ["cmd", "/C"]
-  }
+  content         = tls_private_key.devmart_key.private_key_pem
+  filename        = "${var.key_name}-${local.env}.pem"
+  file_permission = "0400"
 }
 
 # ─── SECURITY GROUP ────────────────────────────────
@@ -94,7 +90,7 @@ resource "aws_security_group" "devmart_sg" {
 # ─── EC2 ───────────────────────────────────────────
 
 resource "aws_instance" "devmart" {
-  ami                    = "ami-091138d0f0d41ff90" # Ubuntu 22.04 us-east-1
+  ami                    = "ami-091138d0f0d41ff90"
   instance_type          = local.current.instance_type
   key_name               = aws_key_pair.devmart_key_pair.key_name
   vpc_security_group_ids = [aws_security_group.devmart_sg.id]
@@ -121,11 +117,11 @@ resource "aws_instance" "devmart" {
     systemctl enable docker
     usermod -aG docker ubuntu
 
-    # Instalar Docker Compose
+     # Instalar Docker Compose
     curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     chmod +x /usr/local/bin/docker-compose
 
-    # Clonar devmart-infra
+     # Clonar devmart-infra
     cd /home/ubuntu
     git clone -b ${local.current.git_branch} https://github.com/jsolano0112/devmart-infra.git
     cd devmart-infra
@@ -155,7 +151,6 @@ resource "aws_instance" "devmart" {
     Environment = local.env
   }
 
-  # Evita que cambios en user_data destruyan la EC2
   lifecycle {
     ignore_changes = [user_data]
   }
@@ -176,7 +171,6 @@ resource "aws_instance" "devmart" {
 resource "aws_eip" "devmart_ip" {
   instance = aws_instance.devmart.id
   tags     = { Name = "devmart-eip-${local.env}" }
-
 
   lifecycle {
     prevent_destroy = true
