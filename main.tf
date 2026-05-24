@@ -46,9 +46,13 @@ resource "tls_private_key" "devmart_key" {
   rsa_bits  = 4096
 }
 
-resource "aws_key_pair" "devmart_key_pair" { 
+resource "aws_key_pair" "devmart_key_pair" {
   key_name   = "${var.key_name}-${local.env}"
   public_key = tls_private_key.devmart_key.public_key_openssh
+
+  lifecycle {
+    ignore_changes = [public_key]
+  }
 }
 
 resource "local_file" "private_key" {
