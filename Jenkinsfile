@@ -1,5 +1,4 @@
 pipeline {
-
     agent any
 
     environment {
@@ -7,10 +6,9 @@ pipeline {
     }
 
     stages {
-
         stage('Init') {
             steps {
-                bat 'terraform init'
+                bat 'terraform init -migrate-state -force-copy'
             }
         }
 
@@ -93,7 +91,7 @@ pipeline {
             }
         }
         failure {
-            echo "Fallo el pipeline de terraform"
+            echo 'Fallo el pipeline de terraform'
         }
     }
 }
