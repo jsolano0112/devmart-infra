@@ -39,12 +39,12 @@ pipeline {
         stage('Plan') {
             steps {
                 withCredentials([
-                    string(credentialsId: 'aws-access-key',     variable: 'TF_VAR_aws_access_key'),
-                    string(credentialsId: 'aws-secret-key',     variable: 'TF_VAR_aws_secret_key'),
-                    string(credentialsId: 'jwt-secret',         variable: 'TF_VAR_jwt_secret'),
-                    string(credentialsId: 'jwt-refresh-secret', variable: 'TF_VAR_jwt_refresh_secret'),
-                    string(credentialsId: 'db-username',        variable: 'TF_VAR_db_username'),
-                    string(credentialsId: 'db-password',        variable: 'TF_VAR_db_password')
+                    string(credentialsId: 'AWS_ACCESS_KEY_ID',     variable: 'TF_VAR_aws_access_key'),
+                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'TF_VAR_aws_secret_key'),
+                    string(credentialsId: 'jwt-secret',            variable: 'TF_VAR_jwt_secret'),
+                    string(credentialsId: 'jwt-refresh-secret',    variable: 'TF_VAR_jwt_refresh_secret'),
+                    string(credentialsId: 'mongo-db-username',     variable: 'TF_VAR_db_username'),
+                    string(credentialsId: 'mongo-db-password',     variable: 'TF_VAR_db_password')
                 ]) {
                     bat 'terraform plan -out=tfplan'
                     bat 'terraform show -no-color tfplan > tfplan.txt'
@@ -53,46 +53,3 @@ pipeline {
         }
 
         stage('Aprobación') {
-            when {
-                not {
-                    equals expected: true, actual: params.autoApprove
-                }
-            }
-            steps {
-                script {
-                    def plan = readFile 'tfplan.txt'
-                    input message: "¿Aprobar apply en ${env.BRANCH_NAME == 'main' ? 'PROD' : 'QA'}?",
-                        parameters: [
-                            text(name: 'Plan', defaultValue: plan)
-                        ]
-                }
-            }
-        }
-
-        stage('Apply') {
-            steps {
-                withCredentials([
-                    string(credentialsId: 'aws-access-key',     variable: 'TF_VAR_aws_access_key'),
-                    string(credentialsId: 'aws-secret-key',     variable: 'TF_VAR_aws_secret_key'),
-                    string(credentialsId: 'jwt-secret',         variable: 'TF_VAR_jwt_secret'),
-                    string(credentialsId: 'jwt-refresh-secret', variable: 'TF_VAR_jwt_refresh_secret'),
-                    string(credentialsId: 'db-username',        variable: 'TF_VAR_db_username'),
-                    string(credentialsId: 'db-password',        variable: 'TF_VAR_db_password')
-                ]) {
-                    bat 'terraform apply -input=false tfplan'
-                }
-            }
-        }
-
-        stage('Mostrar IP') {
-            steps {
-                bat 'terraform output ec2_public_ip'
-            }
-        }
-    }
-
-    post {
-        success { echo "✅ Infraestructura desplegada en ${env.BRANCH_NAME == 'main' ? 'PROD' : 'QA'}" }
-        failure { echo "❌ Falló el pipeline de terraform" }
-    }
-}
