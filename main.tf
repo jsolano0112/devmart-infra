@@ -113,31 +113,31 @@ resource "aws_instance" "devmart" {
 
   user_data = <<-EOF
     #!/bin/bash
+    set -euxo pipefail
+    exec > /var/log/devmart-bootstrap.log 2>&1
+
     apt-get update -y
 
-    # Swap memory
     fallocate -l 1G /swapfile
     chmod 600 /swapfile
     mkswap /swapfile
     swapon /swapfile
     echo '/swapfile none swap sw 0 0' >> /etc/fstab
 
-    # Instalar Docker
     apt-get install -y docker.io git
     systemctl start docker
     systemctl enable docker
     usermod -aG docker ubuntu
 
-     # Instalar Docker Compose
     curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
     chmod +x /usr/local/bin/docker-compose
 
-     # Clonar devmart-infra
     cd /home/ubuntu
-    git clone -b ${local.current.git_branch} https://github.com/jsolano0112/devmart-infra.git
+    if [ ! -d devmart-infra ]; then
+      git clone -b ${local.current.git_branch} https://github.com/jsolano0112/devmart-infra.git
+    fi
     cd devmart-infra
 
-    # Crear .env
     cat > .env << 'ENVFILE'
     ENVIRONMENT=${local.env}
     JWT_SECRET=${var.jwt_secret}
@@ -153,7 +153,7 @@ resource "aws_instance" "devmart" {
     REACT_APP_SOCKET_SERVER_URL=http://localhost:4000
     ENVFILE
 
-    # Levantar servicios
+    chown -R ubuntu:ubuntu /home/ubuntu/devmart-infra
     docker-compose up -d
   EOF
 
