@@ -157,7 +157,7 @@ SOCKET_SERVER_URL=http://websocket-1:5000
                         """
 
                         bat """
-                            ssh -o StrictHostKeyChecking=no -i "%SSH_KEY%" ubuntu@${ec2Ip} "sed -i 's/\\r$//' /tmp/remote-deploy.sh && chmod +x /tmp/remote-deploy.sh && bash /tmp/remote-deploy.sh ${env.INFRA_BRANCH}"
+                            ssh -o StrictHostKeyChecking=no -i "%SSH_KEY%" ubuntu@${ec2Ip} "sed -i 's/\\r\$//' /tmp/remote-deploy.sh && chmod +x /tmp/remote-deploy.sh && bash /tmp/remote-deploy.sh ${env.INFRA_BRANCH}"
                         """
                     }
                 }

@@ -1,4 +1,9 @@
 #!/bin/bash
+if grep -q $'\r' "$0" 2>/dev/null; then
+  sed -i 's/\r$//' "$0"
+  exec "$0" "$@"
+fi
+
 set -eu
 
 INFRA_BRANCH="${1:?Usage: remote-deploy.sh <git-branch>}"
