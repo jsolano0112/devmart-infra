@@ -149,21 +149,36 @@ pipeline {
                     def ec2Ip = env.EC2_PUBLIC_IP ?: getTerraformOutput('ec2_public_ip')
 
                     withCredentials([
-                        string(credentialsId: 'jwt-secret',          variable: 'JWT_SECRET'),
-                        string(credentialsId: 'jwt-refresh-secret',  variable: 'JWT_REFRESH_SECRET'),
-                        string(credentialsId: 'mongo-db-username',   variable: 'DB_USERNAME'),
-                        string(credentialsId: 'mongo-db-password',   variable: 'DB_PASSWORD'),
-                        sshUserPrivateKey(credentialsId: env.SSH_CREDENTIAL, keyFileVariable: 'SSH_KEY')
+                        string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
+                        string(credentialsId: 'jwt-refresh-secret', variable: 'JWT_REFRESH_SECRET'),
+                        string(credentialsId: 'mongo-db-username', variable: 'DB_USERNAME'),
+                        string(credentialsId: 'mongo-db-password', variable: 'DB_PASSWORD'),
+
+                        string(credentialsId: 'AWS_ACCESS_KEY_ID', variable: 'AWS_ACCESS_KEY_ID'),
+                        string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'AWS_SECRET_ACCESS_KEY'),
+                        string(credentialsId: 'aws-region', variable: 'AWS_REGION'),
+                        string(credentialsId: 'aws-s3-bucket', variable: 'AWS_S3_BUCKET'),
+
+                        sshUserPrivateKey(
+                            credentialsId: env.SSH_CREDENTIAL,
+                            keyFileVariable: 'SSH_KEY'
+                        )
                     ]) {
                         writeFile file: 'stack.env', text: """ENVIRONMENT=${env.DEPLOY_TARGET}
-JWT_SECRET=${JWT_SECRET}
-JWT_EXPIRE_IN=15m
-JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
-JWT_REFRESH_EXPIRE_IN=20m
-DB_USERNAME=${DB_USERNAME}
-DB_PASSWORD=${DB_PASSWORD}
-SOCKET_SERVER_URL=http://websocket-1:5000
-"""
+                        JWT_SECRET=${JWT_SECRET}
+                        JWT_EXPIRE_IN=15m
+                        JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+                        JWT_REFRESH_EXPIRE_IN=20m
+                        DB_USERNAME=${DB_USERNAME}
+                        DB_PASSWORD=${DB_PASSWORD}
+
+                        SOCKET_SERVER_URL=http://websocket-1:5000
+
+                        AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+                        AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+                        AWS_REGION=${AWS_REGION}
+                        AWS_S3_BUCKET=${AWS_S3_BUCKET}
+                        """
 
                         fixSshKeyPermissions(env.SSH_KEY)
 
@@ -194,10 +209,10 @@ SOCKET_SERVER_URL=http://websocket-1:5000
         success {
             script {
                 def appUrl = getTerraformOutput('app_url')
-                echo "=========================================="
+                echo '=========================================='
                 echo " OK - ${env.DEPLOY_TARGET == 'prod' ? 'PROD' : 'QA'}"
                 echo " URL: ${appUrl}"
-                echo "=========================================="
+                echo '=========================================='
             }
         }
         failure {
