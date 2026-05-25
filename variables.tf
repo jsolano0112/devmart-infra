@@ -10,6 +10,12 @@ variable "key_name" {
   default     = "devmart-key"
 }
 
+variable "write_private_key_file" {
+  description = "Generar archivo .pem local. En Jenkins usar false (credencial SSH)."
+  type        = bool
+  default     = false
+}
+
 variable "aws_access_key" {
   description = "AWS Access Key (Jenkins: AWS_ACCESS_KEY_ID)"
   type        = string

@@ -44,7 +44,12 @@ pipeline {
     agent any
 
     environment {
-        TF_VAR_key_name = 'devmart-key'
+        TF_VAR_key_name               = 'devmart-key'
+        TF_VAR_write_private_key_file = 'false'
+    }
+
+    options {
+        timeout(time: 90, unit: 'MINUTES')
     }
 
     stages {
@@ -53,7 +58,9 @@ pipeline {
                 script {
                     env.DEPLOY_TARGET = resolveDeployTarget()
                     env.INFRA_BRANCH = env.DEPLOY_TARGET == 'prod' ? 'main' : 'develop'
-                    echo "Entorno detectado: ${env.DEPLOY_TARGET} (rama infra: ${env.INFRA_BRANCH})"
+                    env.SSH_CREDENTIAL = env.DEPLOY_TARGET == 'prod' ? 'devmart-ssh-key-prod' : 'devmart-ssh-key-qa'
+                    echo "Entorno: ${env.DEPLOY_TARGET} | Infra branch: ${env.INFRA_BRANCH}"
+                    echo "SSH Jenkins: ${env.SSH_CREDENTIAL}"
                 }
             }
         }
@@ -73,6 +80,17 @@ pipeline {
             }
         }
 
+        stage('Migrar State') {
+            steps {
+                bat '''
+                    @echo off
+                    terraform state rm local_file.private_key 2>nul
+                    terraform state rm "local_file.private_key[0]" 2>nul
+                    exit /b 0
+                '''
+            }
+        }
+
         stage('Validate') {
             steps {
                 bat 'terraform validate'
@@ -85,6 +103,7 @@ pipeline {
                     string(credentialsId: 'AWS_ACCESS_KEY_ID',     variable: 'TF_VAR_aws_access_key'),
                     string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'TF_VAR_aws_secret_key')
                 ]) {
+                    bat 'terraform refresh -input=false'
                     bat 'terraform plan -out=tfplan'
                     bat 'terraform show -no-color tfplan > tfplan.txt'
                 }
@@ -127,15 +146,14 @@ pipeline {
         stage('Deploy Stack') {
             steps {
                 script {
-                    def sshCred = env.DEPLOY_TARGET == 'prod' ? 'devmart-ssh-key-prod' : 'devmart-ssh-key-qa'
                     def ec2Ip = env.EC2_PUBLIC_IP ?: getTerraformOutput('ec2_public_ip')
 
                     withCredentials([
-                        string(credentialsId: 'jwt-secret',         variable: 'JWT_SECRET'),
-                        string(credentialsId: 'jwt-refresh-secret', variable: 'JWT_REFRESH_SECRET'),
-                        string(credentialsId: 'mongo-db-username',  variable: 'DB_USERNAME'),
-                        string(credentialsId: 'mongo-db-password',  variable: 'DB_PASSWORD'),
-                        sshUserPrivateKey(credentialsId: sshCred, keyFileVariable: 'SSH_KEY')
+                        string(credentialsId: 'jwt-secret',          variable: 'JWT_SECRET'),
+                        string(credentialsId: 'jwt-refresh-secret',  variable: 'JWT_REFRESH_SECRET'),
+                        string(credentialsId: 'mongo-db-username',   variable: 'DB_USERNAME'),
+                        string(credentialsId: 'mongo-db-password',   variable: 'DB_PASSWORD'),
+                        sshUserPrivateKey(credentialsId: env.SSH_CREDENTIAL, keyFileVariable: 'SSH_KEY')
                     ]) {
                         writeFile file: 'stack.env', text: """ENVIRONMENT=${env.DEPLOY_TARGET}
 JWT_SECRET=${JWT_SECRET}
@@ -166,15 +184,24 @@ SOCKET_SERVER_URL=http://websocket-1:5000
     }
 
     post {
+        always {
+            bat '''
+                @echo off
+                if exist stack.env del /f /q stack.env 2>nul
+                exit /b 0
+            '''
+        }
         success {
             script {
                 def appUrl = getTerraformOutput('app_url')
-                echo "Infraestructura y stack Docker desplegados en ${env.DEPLOY_TARGET == 'prod' ? 'PROD' : 'QA'}"
-                echo "URL: ${appUrl}"
+                echo "=========================================="
+                echo " OK - ${env.DEPLOY_TARGET == 'prod' ? 'PROD' : 'QA'}"
+                echo " URL: ${appUrl}"
+                echo "=========================================="
             }
         }
         failure {
-            echo 'Fallo el pipeline de devmart-infra'
+            echo 'Fallo el pipeline de devmart-infra.'
         }
     }
 }

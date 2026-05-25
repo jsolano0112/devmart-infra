@@ -34,6 +34,6 @@ output "key_pair_name" {
 }
 
 output "private_key_filename" {
-  description = "Archivo PEM generado localmente tras apply"
-  value       = local_file.private_key.filename
+  description = "Archivo PEM local"
+  value       = var.write_private_key_file ? local_file.private_key[0].filename : "N/A - usar credencial Jenkins SSH"
 }

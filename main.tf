@@ -92,11 +92,13 @@ resource "aws_key_pair" "devmart" {
   }
 }
 
+# En Jenkins no escribir PEM (evita "Access is denied"). Usar credencial devmart-ssh-key-qa/prod.
 resource "local_file" "private_key" {
-  content              = tls_private_key.devmart.private_key_pem
-  filename             = "${path.module}/${var.key_name}-${local.env}.pem"
-  file_permission      = "0600"
-  directory_permission = "0700"
+  count = var.write_private_key_file ? 1 : 0
+
+  content         = tls_private_key.devmart.private_key_pem
+  filename        = "${path.module}/${var.key_name}-${local.env}.pem"
+  file_permission = "0600"
 }
 
 # -----------------------------------------------------------------------------#
@@ -106,10 +108,10 @@ resource "local_file" "private_key" {
 
 resource "aws_security_group" "devmart" {
   name        = "devmart-sg-${local.env}"
-  description = "Devmart ${local.env} - SSH y API Gateway"
+  # No cambiar: un cambio en description fuerza reemplazo y falla si la EC2 lo usa
+  description = "Security group for Devmart ${local.env}"
 
   ingress {
-    description = "SSH"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
@@ -117,11 +119,14 @@ resource "aws_security_group" "devmart" {
   }
 
   ingress {
-    description = "Nginx gateway (UI + APIs + WebSocket)"
     from_port   = local.current.app_port
     to_port     = local.current.app_port
     protocol    = "tcp"
     cidr_blocks = var.allowed_app_cidr
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 
   egress {
