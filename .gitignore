@@ -41,3 +41,8 @@ Thumbs.db
 # Jenkins workspace temp
 *.backup
 *.tmp
+
+# Secrets and runtime env
+.env
+stack.env
+*.pem

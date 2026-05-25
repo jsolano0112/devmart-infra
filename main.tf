@@ -138,20 +138,16 @@ resource "aws_instance" "devmart" {
     fi
     cd devmart-infra
 
-    cat > .env << 'ENVFILE'
-    ENVIRONMENT=${local.env}
-    JWT_SECRET=${var.jwt_secret}
-    JWT_EXPIRE_IN=15m
-    JWT_REFRESH_SECRET=${var.jwt_refresh_secret}
-    JWT_REFRESH_EXPIRE_IN=20m
-    DB_USERNAME=${var.db_username}
-    DB_PASSWORD=${var.db_password}
-    SOCKET_SERVER_URL=http://websocket-1:5000
-    REACT_APP_DEVMART_API=/api/v1/
-    REACT_APP_USERS_API=/api/v1/
-    REACT_APP_NOTIFICATIONS_API=/api/v1/
-    REACT_APP_SOCKET_SERVER_URL=http://localhost:4000
-    ENVFILE
+    cat > .env <<ENVFILE
+ENVIRONMENT=${local.env}
+JWT_SECRET=${var.jwt_secret}
+JWT_EXPIRE_IN=15m
+JWT_REFRESH_SECRET=${var.jwt_refresh_secret}
+JWT_REFRESH_EXPIRE_IN=20m
+DB_USERNAME=${var.db_username}
+DB_PASSWORD=${var.db_password}
+SOCKET_SERVER_URL=http://websocket-1:5000
+ENVFILE
 
     chown -R ubuntu:ubuntu /home/ubuntu/devmart-infra
     docker-compose up -d

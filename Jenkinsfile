@@ -27,6 +27,19 @@ def resolveDeployTarget() {
     error("No se pudo determinar qa/prod. DEPLOY_ENV=${env.DEPLOY_ENV}, BRANCH_NAME=${env.BRANCH_NAME}, GIT_BRANCH=${env.GIT_BRANCH}, JOB_NAME=${env.JOB_NAME}")
 }
 
+def fixSshKeyPermissions(String keyPath) {
+    bat """
+        icacls "${keyPath}" /inheritance:r
+        icacls "${keyPath}" /remove "BUILTIN\\Usuarios" 2>nul
+        icacls "${keyPath}" /remove "BUILTIN\\Users" 2>nul
+        icacls "${keyPath}" /grant:r "%USERNAME%:R"
+    """
+}
+
+def getTerraformOutput(String name) {
+    return bat(returnStdout: true, script: "@echo off\r\nterraform output -raw ${name}").trim()
+}
+
 pipeline {
     agent any
 
@@ -39,7 +52,8 @@ pipeline {
             steps {
                 script {
                     env.DEPLOY_TARGET = resolveDeployTarget()
-                    echo "Entorno detectado: ${env.DEPLOY_TARGET}"
+                    env.INFRA_BRANCH = env.DEPLOY_TARGET == 'prod' ? 'main' : 'develop'
+                    echo "Entorno detectado: ${env.DEPLOY_TARGET} (rama infra: ${env.INFRA_BRANCH})"
                 }
             }
         }
@@ -111,17 +125,60 @@ pipeline {
 
         stage('Outputs') {
             steps {
-                bat 'terraform output ec2_public_ip'
+                script {
+                    env.EC2_PUBLIC_IP = getTerraformOutput('ec2_public_ip')
+                    echo "EC2 IP: ${env.EC2_PUBLIC_IP}"
+                }
+            }
+        }
+
+        stage('Deploy Stack') {
+            steps {
+                script {
+                    def sshCred = env.DEPLOY_TARGET == 'prod' ? 'devmart-ssh-key-prod' : 'devmart-ssh-key-qa'
+                    def ec2Ip = env.EC2_PUBLIC_IP ?: getTerraformOutput('ec2_public_ip')
+
+                    withCredentials([
+                        string(credentialsId: 'jwt-secret',         variable: 'JWT_SECRET'),
+                        string(credentialsId: 'jwt-refresh-secret', variable: 'JWT_REFRESH_SECRET'),
+                        string(credentialsId: 'mongo-db-username',  variable: 'DB_USERNAME'),
+                        string(credentialsId: 'mongo-db-password',  variable: 'DB_PASSWORD'),
+                        sshUserPrivateKey(credentialsId: sshCred, keyFileVariable: 'SSH_KEY')
+                    ]) {
+                        writeFile file: 'stack.env', text: """ENVIRONMENT=${env.DEPLOY_TARGET}
+JWT_SECRET=${JWT_SECRET}
+JWT_EXPIRE_IN=15m
+JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+JWT_REFRESH_EXPIRE_IN=20m
+DB_USERNAME=${DB_USERNAME}
+DB_PASSWORD=${DB_PASSWORD}
+SOCKET_SERVER_URL=http://websocket-1:5000
+"""
+
+                        fixSshKeyPermissions(env.SSH_KEY)
+
+                        bat """
+                            scp -o StrictHostKeyChecking=no -i "%SSH_KEY%" stack.env ubuntu@${ec2Ip}:/tmp/stack.env
+                            scp -o StrictHostKeyChecking=no -i "%SSH_KEY%" docker-compose.yml ubuntu@${ec2Ip}:/tmp/docker-compose.yml
+                            scp -o StrictHostKeyChecking=no -i "%SSH_KEY%" nginx.conf ubuntu@${ec2Ip}:/tmp/nginx.conf
+                            scp -o StrictHostKeyChecking=no -i "%SSH_KEY%" scripts/remote-deploy.sh ubuntu@${ec2Ip}:/tmp/remote-deploy.sh
+                        """
+
+                        bat """
+                            ssh -o StrictHostKeyChecking=no -i "%SSH_KEY%" ubuntu@${ec2Ip} "chmod +x /tmp/remote-deploy.sh && bash /tmp/remote-deploy.sh ${env.INFRA_BRANCH}"
+                        """
+                    }
+                }
             }
         }
     }
 
     post {
         success {
-            echo "Infraestructura desplegada en ${env.DEPLOY_TARGET == 'prod' ? 'PROD' : 'QA'}"
+            echo "Infraestructura y stack Docker desplegados en ${env.DEPLOY_TARGET == 'prod' ? 'PROD' : 'QA'}"
         }
         failure {
-            echo 'Fallo el pipeline de terraform'
+            echo 'Fallo el pipeline de devmart-infra'
         }
     }
 }
