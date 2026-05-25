@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -eu
 
 INFRA_BRANCH="${1:?Usage: remote-deploy.sh <git-branch>}"
 REPO_DIR="/home/ubuntu/devmart-infra"

@@ -83,11 +83,7 @@ pipeline {
             steps {
                 withCredentials([
                     string(credentialsId: 'AWS_ACCESS_KEY_ID',     variable: 'TF_VAR_aws_access_key'),
-                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'TF_VAR_aws_secret_key'),
-                    string(credentialsId: 'jwt-secret',            variable: 'TF_VAR_jwt_secret'),
-                    string(credentialsId: 'jwt-refresh-secret',    variable: 'TF_VAR_jwt_refresh_secret'),
-                    string(credentialsId: 'mongo-db-username',     variable: 'TF_VAR_db_username'),
-                    string(credentialsId: 'mongo-db-password',     variable: 'TF_VAR_db_password')
+                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'TF_VAR_aws_secret_key')
                 ]) {
                     bat 'terraform plan -out=tfplan'
                     bat 'terraform show -no-color tfplan > tfplan.txt'
@@ -112,11 +108,7 @@ pipeline {
             steps {
                 withCredentials([
                     string(credentialsId: 'AWS_ACCESS_KEY_ID',     variable: 'TF_VAR_aws_access_key'),
-                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'TF_VAR_aws_secret_key'),
-                    string(credentialsId: 'jwt-secret',            variable: 'TF_VAR_jwt_secret'),
-                    string(credentialsId: 'jwt-refresh-secret',    variable: 'TF_VAR_jwt_refresh_secret'),
-                    string(credentialsId: 'mongo-db-username',     variable: 'TF_VAR_db_username'),
-                    string(credentialsId: 'mongo-db-password',     variable: 'TF_VAR_db_password')
+                    string(credentialsId: 'AWS_SECRET_ACCESS_KEY', variable: 'TF_VAR_aws_secret_key')
                 ]) {
                     bat 'terraform apply -input=false tfplan'
                 }
@@ -165,7 +157,7 @@ SOCKET_SERVER_URL=http://websocket-1:5000
                         """
 
                         bat """
-                            ssh -o StrictHostKeyChecking=no -i "%SSH_KEY%" ubuntu@${ec2Ip} "chmod +x /tmp/remote-deploy.sh && bash /tmp/remote-deploy.sh ${env.INFRA_BRANCH}"
+                            ssh -o StrictHostKeyChecking=no -i "%SSH_KEY%" ubuntu@${ec2Ip} "sed -i 's/\\r$//' /tmp/remote-deploy.sh && chmod +x /tmp/remote-deploy.sh && bash /tmp/remote-deploy.sh ${env.INFRA_BRANCH}"
                         """
                     }
                 }
@@ -175,7 +167,11 @@ SOCKET_SERVER_URL=http://websocket-1:5000
 
     post {
         success {
-            echo "Infraestructura y stack Docker desplegados en ${env.DEPLOY_TARGET == 'prod' ? 'PROD' : 'QA'}"
+            script {
+                def appUrl = getTerraformOutput('app_url')
+                echo "Infraestructura y stack Docker desplegados en ${env.DEPLOY_TARGET == 'prod' ? 'PROD' : 'QA'}"
+                echo "URL: ${appUrl}"
+            }
         }
         failure {
             echo 'Fallo el pipeline de devmart-infra'
