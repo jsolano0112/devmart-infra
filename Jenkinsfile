@@ -1,3 +1,32 @@
+def resolveDeployTarget() {
+    def explicit = env.DEPLOY_ENV?.trim()?.toLowerCase()
+    if (explicit in ['qa', 'prod']) {
+        return explicit
+    }
+
+    def branch = env.BRANCH_NAME?.trim()
+    if (!branch && env.GIT_BRANCH) {
+        branch = env.GIT_BRANCH.replaceFirst(/^origin\//, '').trim()
+    }
+
+    if (branch == 'main') {
+        return 'prod'
+    }
+    if (branch in ['qa', 'develop']) {
+        return 'qa'
+    }
+
+    def job = env.JOB_NAME?.toLowerCase() ?: ''
+    if (job.contains('prod')) {
+        return 'prod'
+    }
+    if (job.contains('qa')) {
+        return 'qa'
+    }
+
+    error("No se pudo determinar qa/prod. DEPLOY_ENV=${env.DEPLOY_ENV}, BRANCH_NAME=${env.BRANCH_NAME}, GIT_BRANCH=${env.GIT_BRANCH}, JOB_NAME=${env.JOB_NAME}")
+}
+
 pipeline {
     agent any
 
@@ -6,6 +35,15 @@ pipeline {
     }
 
     stages {
+        stage('Setup') {
+            steps {
+                script {
+                    env.DEPLOY_TARGET = resolveDeployTarget()
+                    echo "Entorno detectado: ${env.DEPLOY_TARGET}"
+                }
+            }
+        }
+
         stage('Init') {
             steps {
                 bat 'terraform init -migrate-state -force-copy'
@@ -15,13 +53,8 @@ pipeline {
         stage('Workspace') {
             steps {
                 script {
-                    if (env.BRANCH_NAME == 'develop') {
-                        bat 'terraform workspace select -or-create qa'
-                    } else if (env.BRANCH_NAME == 'main') {
-                        bat 'terraform workspace select -or-create prod'
-                    } else {
-                        error("Branch no soportada: ${env.BRANCH_NAME}")
-                    }
+                    def workspace = env.DEPLOY_TARGET == 'prod' ? 'prod' : 'qa'
+                    bat "terraform workspace select -or-create ${workspace}"
                 }
             }
         }
@@ -50,7 +83,7 @@ pipeline {
 
         stage('Aprobacion PROD') {
             when {
-                branch 'main'
+                expression { env.DEPLOY_TARGET == 'prod' }
             }
             steps {
                 script {
@@ -85,10 +118,7 @@ pipeline {
 
     post {
         success {
-            script {
-                def ambiente = env.BRANCH_NAME == 'main' ? 'PROD' : 'QA'
-                echo "Infraestructura desplegada en ${ambiente}"
-            }
+            echo "Infraestructura desplegada en ${env.DEPLOY_TARGET == 'prod' ? 'PROD' : 'QA'}"
         }
         failure {
             echo 'Fallo el pipeline de terraform'
