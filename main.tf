@@ -183,7 +183,7 @@ resource "aws_ecs_cluster_capacity_providers" "devmart" {
 }
 
 # -----------------------------------------------------------------------------
-# IAM Role para ECS Task Execution
+# IAM Role para ECS
 # -----------------------------------------------------------------------------
 
 resource "aws_iam_role" "ecs_execution" {
