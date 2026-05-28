@@ -236,7 +236,7 @@ resource "aws_iam_role_policy" "ecs_execution_policy" {
 }
 
 # -----------------------------------------------------------------------------
-# Application Load Balancer - nginx
+# Load Balancer - nginx
 # -----------------------------------------------------------------------------
 
 resource "aws_lb" "devmart" {
